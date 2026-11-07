@@ -1,0 +1,2 @@
+{ "name": "Deadline Lager", "short_name": "Lager", "start_url": "/prosjekter", "display": "standalone", "background_color": "#1b252e", "theme_color": "#1b252e",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }] }
