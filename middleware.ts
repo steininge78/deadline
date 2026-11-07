@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
   });
   const { data: { user } } = await supabase.auth.getUser();
   const p = req.nextUrl.pathname;
-  const open = p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/leie') || p.startsWith('/api/public');
+  const open = p.startsWith('/login') || p.startsWith('/auth') || p.startsWith('/leie') || p.startsWith('/api/public') || p.startsWith('/personvern');
   if (!user && !open) {
     const url = req.nextUrl.clone(); url.pathname = '/login'; url.search = p === '/' ? '' : `?next=${encodeURIComponent(p)}`;
     return NextResponse.redirect(url);
