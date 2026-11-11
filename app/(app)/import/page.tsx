@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { sb } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import { Head, Icon, useToast } from '@/components/ui';
+import { RentmanPhotos } from '@/components/RentmanPhotos';
 
 // Import fra Rentman-eksport eller annet regneark. Kan kjøres flere ganger:
 // artikler oppdateres på utstyrskode, nye QR-koder blir nye enheter, ingenting slettes.
@@ -148,6 +149,7 @@ export default function Import() {
       </div>}
       {log.length > 0 && <div className="scanlog">{log.map((l, i) => <div key={i}>{l}</div>)}</div>}
     </div>
+    <RentmanPhotos />
   </>;
 }
 
