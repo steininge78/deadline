@@ -14,7 +14,7 @@ const NAV = [
   { h: '/lager', l: 'Lager', i: 'box', also: ['/pakker', '/import'] },
   { h: '/kalender', l: 'Kalender', i: 'cal' },
   { h: '/foresporsler', l: 'Forespørsler', i: 'req' },
-  { h: '/vedlikehold', l: 'Vedlikehold', i: 'wrench' },
+  { h: '/vedlikehold', l: 'Vedlikehold og mangler', i: 'wrench' },
   { h: '/mer', l: 'Mer', i: 'more' }
 ] as const;
 
@@ -32,7 +32,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const cur = (n: any) => path.startsWith(n.h) || (n.also || []).some((a: string) => path.startsWith(a));
   const navs = internal ? NAV : NAV.filter(n => n.h === '/prosjekter' || n.h === '/mer');
   const tabs: any[] = internal ? [NAV[0], NAV[1], null, NAV[2], NAV[5]] : [NAV[0], null, NAV[5]];
-  const moreActive = ['/foresporsler', '/vedlikehold', '/mer'].some(p => path.startsWith(p));
+  const moreActive = ['/foresporsler', '/vedlikehold', '/mer', '/kameraer'].some(p => path.startsWith(p));
 
   const onCode = (code: string) => {
     const r = lookupCode(store, code);

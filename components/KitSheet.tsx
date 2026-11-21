@@ -12,6 +12,7 @@ export function KitSheet({ kit, onClose }: { kit?: any; onClose: () => void }) {
   const km = kit ? store.M(kit.model_id) : null;
   const [type, setType] = useState(kit?.type || 'case');
   const [name, setName] = useState(km?.name || '');
+  const [loc, setLoc] = useState(km?.loc || '');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<Record<string, number>>(() => Object.fromEntries((kit ? store.kitItems(kit.id) : []).map(i => [i.model_id, i.qty])));
   const [busy, setBusy] = useState(false);
@@ -23,11 +24,11 @@ export function KitSheet({ kit, onClose }: { kit?: any; onClose: () => void }) {
     try {
       let kid = kit?.id;
       if (kit) {
-        await sb().from('models').update({ name }).eq('id', kit.model_id);
+        await sb().from('models').update({ name, loc: loc || null }).eq('id', kit.model_id);
         await sb().from('kits').update({ type, inferred: false }).eq('id', kit.id);
         await sb().from('kit_items').delete().eq('kit_id', kit.id);
       } else {
-        const { data: m, error } = await sb().from('models').insert({ name, cat: 'Utstyrspakker', sub: type === 'case' ? 'Fysisk pakke' : 'Virtuell pakke', is_kit: true, track: 'unit' }).select().single();
+        const { data: m, error } = await sb().from('models').insert({ name, loc: loc || null, cat: 'Utstyrspakker', sub: type === 'case' ? 'Fysisk pakke' : 'Virtuell pakke', is_kit: true, track: 'unit' }).select().single();
         if (error) throw error;
         await sb().from('units').insert({ model_id: m.id, no: 1, qr: type === 'case' ? newQR() : null });
         const { data: k, error: e2 } = await sb().from('kits').insert({ model_id: m.id, type }).select().single(); if (e2) throw e2;
@@ -45,6 +46,7 @@ export function KitSheet({ kit, onClose }: { kit?: any; onClose: () => void }) {
     <form className="form" onSubmit={save}>
       <div className="seg"><button type="button" aria-pressed={type === 'case'} onClick={() => setType('case')}>Fysisk pakke</button><button type="button" aria-pressed={type === 'pakke'} onClick={() => setType('pakke')}>Virtuell pakke</button></div>
       <div className="field"><label htmlFor="kf-n">Navn</label><input className="input" id="kf-n" required value={name} onChange={e => setName(e.target.value)} placeholder="F.eks. DJ-pakke stor" /></div>
+      <div className="field"><label htmlFor="kf-l">Lagerplassering</label><input className="input" id="kf-l" value={loc} onChange={e => setLoc(e.target.value)} placeholder="F.eks. Reol B3, hylle 2" /></div>
       <div className="field"><span className="eyebrow">Innhold</span>
         <div className="small muted">{chosen.length ? chosen.map(([m, n]) => `${n}× ${store.M(m)?.name}`).join(', ') : 'Ingenting valgt ennå'}</div>
         <div className="search"><Icon.search /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Søk i lageret for å legge til" aria-label="Søk" /></div>

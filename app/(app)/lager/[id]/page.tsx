@@ -6,6 +6,7 @@ import { sb, photoUrl } from '@/lib/supabase';
 import { intervalOf, useAvailability, useStore } from '@/lib/store';
 import { Head, Icon, Label, Pill, Sheet, Stepper, QR, useToast } from '@/components/ui';
 import { ModelSheet, PhotoButtons, UnitSheet, uploadPhotos } from '@/components/sheets';
+import { ModelFiles, ModelSpecs } from '@/components/ModelExtras';
 import { addDays, fd, fr, kr, newQR, today } from '@/lib/util';
 
 function Utstyr() {
@@ -24,6 +25,8 @@ function Utstyr() {
     return [...ps, ...rs].sort((a, b) => a.s.localeCompare(b.s));
   }, [m, store.db, T]);
   if (!m) return store.db.models.length ? <Head title="Fant ikke utstyret" back={['/lager', 'Lager']} /> : <div className="loading">Laster…</div>;
+  const fra = search.get('fra'); const fp = fra ? store.P(fra) : null;
+  const backTo: [string, string] = fp ? [`/prosjekter/${fp.id}`, fp.name] : ['/lager', 'Lager'];
   const us = store.unitsOf(m.id); const a = av.get(m.id)?.available ?? 0; const tot = m.track === 'qty' ? m.stock : us.length;
 
   const addPhotos = async (files: File[]) => { if (!files.length) return; setBusy(true); try { await uploadPhotos(m.id, files, m.photos); await store.refresh('models'); toast(files.length === 1 ? 'Bildet er lagret' : `${files.length} bilder lagret`); } catch (e: any) { toast(e.message, 'bad'); } finally { setBusy(false); } };
@@ -31,7 +34,7 @@ function Utstyr() {
   const makeMain = async (path: string) => { const photos = [path, ...m.photos.filter((p: string) => p !== path)]; await sb().from('models').update({ photos }).eq('id', m.id); await store.refresh('models'); setBig(null); toast('Hovedbilde endret'); };
 
   return <>
-    <Head title={m.name} back={['/lager', 'Lager']} sub={`${m.cat}${m.sub ? ' › ' + m.sub : ''}`}
+    <Head title={m.name} back={backTo} sub={`${m.cat}${m.sub ? ' › ' + m.sub : ''}`}
       actions={store.internal && <><button className="btn" onClick={() => setEdit(true)}>Rediger</button>{m.track === 'unit' && <button className="btn accent" onClick={async () => {
         const no = (us.reduce((x, u) => Math.max(x, u.no), 0)) + 1; const { data, error } = await sb().from('units').insert({ model_id: m.id, no, qr: newQR() }).select().single();
         if (error) return toast(error.message, 'bad'); await store.refresh('units'); setUnit(data); toast(`Enhet #${no} lagt til`);
@@ -52,6 +55,7 @@ function Utstyr() {
       <dt>Inspeksjon</dt><dd>{m.inspect_interval ? `hver ${m.inspect_interval}. dag` : 'Ikke satt'}</dd><dt>Nettsiden</dt><dd>{m.web ? <Pill c="acc">Vises for utleie</Pill> : 'Vises ikke'}</dd></dl>
       {m.description && <p className="small" style={{ margin: 0 }}>{m.description}</p>}{m.notes && <p className="small muted" style={{ margin: 0 }}>Notat: {m.notes}</p>}</div>
 
+    <ModelSpecs model={m} />
     {m.track === 'qty' ? <div className="card"><h3>Antall på lager</h3><p className="muted small" style={{ margin: 0 }}>Telles i antall, ikke enkeltvis.{m.qr && <> Felles kode: <b>{m.qr}</b>.</>}</p>
       {m.qr && <QR text={m.qr} size={96} />}
       {store.internal && <Stepper value={m.stock} onChange={async n => { store.mutate('models', r => r.map(x => x.id === m.id ? { ...x, stock: n } : x)); await sb().from('models').update({ stock: n }).eq('id', m.id); }} />}
@@ -62,6 +66,7 @@ function Utstyr() {
           <div className="main"><div className="t">#{u.no}{u.serial ? ' · ' + u.serial : ''}</div><div className="s">{u.qr || 'Ingen QR-kode'}{ni ? <> · neste inspeksjon <span className="tnum">{fd(ni)}</span></> : ''}</div></div>
           <div className="end">{u.status === 'service' ? <Pill c="bad">Service</Pill> : due ? <Pill c="warn">{ni ? 'Inspeksjon' : 'Ikke inspisert'}</Pill> : <Pill c="ok">OK</Pill>}</div></button>; })}</div></div>}
 
+    <ModelFiles model={m} />
     {edit && <ModelSheet model={m} onClose={() => setEdit(false)} />}
     {unit && <UnitSheet unit={store.U(unit.id) || unit} onClose={() => setUnit(null)} />}
     {labels && <Sheet title="QR-etiketter" onClose={() => setLabels(false)}>

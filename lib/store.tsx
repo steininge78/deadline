@@ -4,7 +4,7 @@ import { sb } from './supabase';
 
 // Laster hele datasettet én gang (noen tusen rader) og holder det i minnet.
 // Endringer skrives rett til Supabase og lastes inn på nytt for berørte tabeller.
-const TABLES = ['models', 'units', 'kits', 'kit_items', 'resources', 'projects', 'project_lines', 'project_resources', 'project_crew', 'requests', 'request_lines', 'request_resources', 'tickets', 'consumables', 'profiles'] as const;
+const TABLES = ['models', 'units', 'kits', 'kit_items', 'resources', 'projects', 'project_lines', 'project_resources', 'project_crew', 'requests', 'request_lines', 'request_resources', 'tickets', 'consumables', 'profiles', 'model_files', 'shortages', 'cameras'] as const;
 export type Table = typeof TABLES[number];
 export type DB = Record<Table, any[]>;
 
@@ -41,8 +41,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (...tables: Table[]) => {
     const list = tables.length ? tables : [...TABLES];
     try {
-      const res = await Promise.all(list.map(t => fetchAll(t)));
-      setDb(prev => { const n = { ...prev }; list.forEach((t, i) => { n[t] = res[i]; }); return n; });
+      // En tabell som mangler (f.eks. før en ny databasemigrering er kjørt) skal ikke stoppe resten
+      const res = await Promise.all(list.map(t => fetchAll(t).catch(e => { console.warn('Kunne ikke laste', t, e?.message); return null; })));
+      setDb(prev => { const n = { ...prev }; list.forEach((t, i) => { if (res[i]) n[t] = res[i]; }); return n; });
       setVersion(v => v + 1);
     } catch (e: any) { setError(e.message || String(e)); }
   }, []);

@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAvailability, useStore } from '@/lib/store';
 import { Head } from '@/components/ui';
-import { DAG, addDays, daysBetween, fd, mondayOf, parse, today } from '@/lib/util';
+import { DAG, MND_LANG, addDays, daysBetween, fd, mondayOf, parse, today } from '@/lib/util';
 
 export default function Kalender() {
   const store = useStore(); const T = today();
-  const [start, setStart] = useState(mondayOf(T)); const [n, setN] = useState(21);
-  useEffect(() => { const f = () => setN(innerWidth >= 900 ? 28 : 21); f(); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
+  const [start, setStart] = useState(mondayOf(T)); const [weeksN, setWeeksN] = useState(21); const [month, setMonth] = useState<string | null>(null);
+  useEffect(() => { const f = () => setWeeksN(innerWidth >= 900 ? 28 : 21); f(); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
+  // Månedsvisning: hopp direkte til valgt måned og år
+  const n = month ? new Date(+month.slice(0, 4), +month.slice(5, 7), 0).getDate() : weeksN;
+  const jump = (dir: number) => { if (month) { const d = new Date(+month.slice(0, 4), +month.slice(5, 7) - 1 + dir, 1); const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; setMonth(m); setStart(m + '-01'); } else setStart(addDays(start, 7 * dir)); };
   const days = Array.from({ length: n }, (_, i) => addDays(start, i)); const end = days[n - 1];
   const bar = (s: string, e: string, cls: string, label: string, href: string) => {
     const a = s < start ? start : s, b = e > end ? end : e; if (a > b) return null;
@@ -24,7 +27,11 @@ export default function Kalender() {
   const sel = m || models[0]?.id; const a = av.get(sel);
 
   return <>
-    <Head title="Kalender" sub={<span className="tnum">{fd(start)} – {fd(end)}</span>} actions={<><button className="btn sm" onClick={() => setStart(addDays(start, -7))} aria-label="Forrige uke">‹</button><button className="btn sm" onClick={() => setStart(mondayOf(T))}>I dag</button><button className="btn sm" onClick={() => setStart(addDays(start, 7))} aria-label="Neste uke">›</button></>} />
+    <Head title="Kalender" sub={<span className="tnum">{fd(start)} – {fd(end)}</span>} actions={<><button className="btn sm" onClick={() => jump(-1)} aria-label={month ? 'Forrige måned' : 'Forrige uke'}>‹</button><button className="btn sm" onClick={() => { setMonth(null); setStart(mondayOf(T)); }}>I dag</button><button className="btn sm" onClick={() => jump(1)} aria-label={month ? 'Neste måned' : 'Neste uke'}>›</button>
+      {(() => { const cur = month || start.slice(0, 7); const y = +cur.slice(0, 4), mo = +cur.slice(5, 7); const go = (yy: number, mm: number) => { const v = `${yy}-${String(mm).padStart(2, '0')}`; setMonth(v); setStart(v + '-01'); };
+        const st = { width: 'auto', minHeight: 34, padding: '4px 8px' };
+        return <><select className="input" style={st} aria-label="Måned" value={mo} onChange={e => go(y, +e.target.value)}>{MND_LANG.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+          <select className="input" style={st} aria-label="År" value={y} onChange={e => go(+e.target.value, mo)}>{Array.from({ length: 6 }, (_, i) => +T.slice(0, 4) - 1 + i).map(v => <option key={v}>{v}</option>)}</select></>; })()}</>} />
     <div className="legend"><span><i style={{ background: 'var(--navy)' }} />Prosjekt</span><span><i style={{ background: 'var(--violet)' }} />Ressurs i bruk</span><span><i style={{ background: 'repeating-linear-gradient(135deg,var(--orange) 0 4px,#e2440b 4px 8px)' }} />Forespørsel</span></div>
     <div className="cal"><table><thead><tr><th className="rowh" style={{ background: 'var(--surface)' }} />{days.map(x => { const dt = parse(x); return <th key={x} className={x === T ? 'today' : ''}>{DAG[dt.getDay()]}<span className="d tnum">{dt.getDate()}</span></th>; })}</tr></thead><tbody>
       <tr className="sec"><th className="rowh">Oppdrag</th><td colSpan={n} /></tr>

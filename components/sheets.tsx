@@ -151,6 +151,11 @@ export function Picker({ title, start, end, exProject, exRequest, onPick, onClos
     <div className="form">
       <div className="search"><Icon.search /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Søk i lageret" aria-label="Søk" /></div>
       <div className="chips">{['Alle', 'Pakker', ...cats].map(c => <button key={c} className="chip" aria-pressed={c === cat} onClick={() => setCat(c)}>{c}</button>)}</div>
+      {cat !== 'Pakker' && all.length > 0 && <div className="row-actions" style={{ alignItems: 'center' }}>
+        <button type="button" className="btn sm" onClick={() => setSel({ ...sel, ...Object.fromEntries(all.map(m => [m.id, Math.max(1, m.track === 'qty' ? m.stock : store.unitsOf(m.id).length)])) })}>Velg alle {all.length} (hele beholdningen)</button>
+        {n > 0 && <button type="button" className="btn sm ghost" onClick={() => setSel({})}>Fjern valg</button>}
+        <span className="small muted">{n} valgt</span>
+      </div>}
       <div className="list">
         {kits.slice(0, cat === 'Pakker' ? 99 : 5).map(k => { const items = store.kitItems(k.id); return <button key={k.id} className="item" onClick={() => onPick([], k)}>
           <span style={{ color: 'var(--violet-ink)' }}>{k.type === 'case' ? <Icon.case size={22} /> : <Icon.layers size={22} />}</span>

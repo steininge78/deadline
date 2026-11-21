@@ -6,18 +6,20 @@ import { Empty, Head, Pill, useToast } from '@/components/ui';
 import { Scanner } from '@/components/Scanner';
 import { FaultSheet, UnitSheet } from '@/components/sheets';
 import { Consumables } from '@/components/Consumables';
+import { ShortageList, ShortageSheet } from '@/components/Shortages';
 import { addDays, fd, today } from '@/lib/util';
 
 export default function Vedlikehold() {
   const store = useStore(); const toast = useToast(); const T = today();
-  const [scan, setScan] = useState(false); const [fault, setFault] = useState<any>(null); const [unit, setUnit] = useState<any>(null); const [showAll, setShowAll] = useState(false);
+  const [scan, setScan] = useState(false); const [fault, setFault] = useState<any>(null); const [unit, setUnit] = useState<any>(null); const [showAll, setShowAll] = useState(false); const [short, setShort] = useState(false);
   const withIv = store.db.units.filter(u => u.status !== 'utrangert' && intervalOf(store, u));
   const never = withIv.filter(u => !u.last_inspection);
   const due = withIv.filter(u => u.last_inspection).map(u => ({ u, n: addDays(u.last_inspection, intervalOf(store, u)) })).filter(x => x.n <= addDays(T, 30)).sort((a, b) => a.n.localeCompare(b.n));
   const tickets = [...store.db.tickets].sort((a, b) => (+(a.status === 'Ferdig') - +(b.status === 'Ferdig')) || b.created_at.localeCompare(a.created_at)).filter(t => showAll || t.status !== 'Ferdig');
 
   return <>
-    <Head title="Vedlikehold" back={['/mer', 'Mer']} sub="Service, reparasjoner, inspeksjoner og varetelling" actions={<button className="btn accent" onClick={() => setScan(true)}>Meld feil</button>} />
+    <Head title="Vedlikehold og mangler" back={['/mer', 'Mer']} sub="Service, reparasjoner, inspeksjoner, mangler og varetelling" actions={<><button className="btn accent" onClick={() => setShort(true)}>Meld mangel</button><button className="btn" onClick={() => setScan(true)}>Meld feil</button></>} />
+    <ShortageList />
     <div className="group"><div className="group-h"><h3>Service og reparasjon</h3><button className="btn sm ghost" onClick={() => setShowAll(!showAll)}>{showAll ? 'Skjul ferdige' : 'Vis ferdige'}</button></div>
       <div className="list">{tickets.map(t => { const u = store.U(t.unit_id); if (!u) return null; const by = store.db.profiles.find(p => p.id === t.created_by);
         return <div key={t.id} className="item"><div className="main" onClick={() => setUnit(u)} style={{ cursor: 'pointer' }}><div className="t">{unitLabel(store, u)}</div><div className="s">{t.issue} · {by?.name || 'ukjent'}, <span className="tnum">{fd(t.created_at.slice(0, 10))}</span></div></div>
@@ -38,6 +40,7 @@ export default function Vedlikehold() {
         {never.length > 10 && <div className="item small muted">+ {never.length - 10} til</div>}</div></div>}
     <div className="group"><div className="group-h"><h3>Salg og forbruk</h3></div><Consumables /></div>
     {scan && <Scanner title="Hvilket utstyr har feil?" hint="Skann QR-koden på utstyret" onClose={() => setScan(false)} onCode={code => { const r = lookupCode(store, code); if (r.type !== 'unit' && r.type !== 'kit') return { kind: 'bad', msg: 'Fant ikke enheten' }; setScan(false); setFault(r.unit); }} />}
+    {short && <ShortageSheet onClose={() => setShort(false)} />}
     {fault && <FaultSheet unit={fault} onClose={() => setFault(null)} />}
     {unit && <UnitSheet unit={store.U(unit.id) || unit} onClose={() => setUnit(null)} />}
   </>;

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { kitQR, useAvailability, useStore } from '@/lib/store';
 import { Empty, Head, Icon, Pill } from '@/components/ui';
 import { ModelSheet, photoOf } from '@/components/sheets';
@@ -10,8 +10,16 @@ import { KTYPE, kr, today } from '@/lib/util';
 
 export default function Lager() {
   const store = useStore();
-  const [tab, setTab] = useState<'utstyr' | 'pakker' | 'forbruk'>('utstyr');
-  const [q, setQ] = useState(''); const [cat, setCat] = useState('Alle'); const [sub, setSub] = useState('Alle'); const [limit, setLimit] = useState(60);
+  // Søk og filtre huskes, så «tilbake» fra en produktside gir samme treffliste
+  const saved = (() => { try { return JSON.parse(sessionStorage.getItem('lager') || '{}'); } catch { return {}; } })();
+  const [tab, setTab] = useState<'utstyr' | 'pakker' | 'forbruk'>(saved.tab || 'utstyr');
+  const [q, setQ] = useState(saved.q || ''); const [cat, setCat] = useState(saved.cat || 'Alle'); const [sub, setSub] = useState(saved.sub || 'Alle'); const [limit, setLimit] = useState(saved.limit || 60);
+  useEffect(() => { try { sessionStorage.setItem('lager', JSON.stringify({ tab, q, cat, sub, limit, y: saved.y })); } catch {} }, [tab, q, cat, sub, limit]); // eslint-disable-line
+  useEffect(() => {
+    const y = saved.y; if (y && store.db.models.length) requestAnimationFrame(() => scrollTo(0, y));
+    const onScroll = () => { try { const v = JSON.parse(sessionStorage.getItem('lager') || '{}'); v.y = scrollY; sessionStorage.setItem('lager', JSON.stringify(v)); } catch {} };
+    addEventListener('scroll', onScroll, { passive: true }); return () => removeEventListener('scroll', onScroll);
+  }, [store.db.models.length]); // eslint-disable-line
   const [creating, setCreating] = useState(false); const [newKit, setNewKit] = useState(false);
   const T = today(); const av = useAvailability(T, T);
   const cats = useMemo(() => [...new Set(store.db.models.map(m => m.cat))].sort(), [store.db.models]);

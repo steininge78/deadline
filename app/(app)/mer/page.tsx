@@ -5,6 +5,7 @@ import { sb } from '@/lib/supabase';
 import { resBusy, useStore } from '@/lib/store';
 import { Empty, Head, Icon, Pill, Sheet, useToast } from '@/components/ui';
 import { ROLES, initials, kr, today } from '@/lib/util';
+import { ResourcePosition } from '@/components/ResourcePosition';
 
 const RTYPES = ['Kjøretøy', 'Tilhenger', 'Scene', 'Maskin', 'Annet'];
 
@@ -14,8 +15,9 @@ export default function Mer() {
   const T = today();
   const links: [string, keyof typeof Icon, string, string][] = store.internal ? [
     ['/foresporsler', 'req', 'Forespørsler og tilbud', `${store.db.requests.filter(r => !['Akseptert', 'Avslått'].includes(r.status)).length} åpne`],
-    ['/vedlikehold', 'wrench', 'Vedlikehold', `${store.db.tickets.filter(t => t.status !== 'Ferdig').length} åpne saker`],
+    ['/vedlikehold', 'wrench', 'Vedlikehold og mangler', `${store.db.tickets.filter(t => t.status !== 'Ferdig').length} åpne saker · ${store.db.shortages.filter(s => s.status !== 'Løst').length} mangler`],
     ['/kalender', 'cal', 'Kalender', ''],
+    ['/kameraer', 'camera', 'Kameraer', `${store.db.cameras.length} kameraer`],
     ['/import', 'upload', 'Importer lager fra Excel', ''],
     ['/leie', 'globe', 'Utleiesiden (slik kundene ser den)', `${store.db.models.filter(m => m.web).length} artikler vises`]
   ] : [];
@@ -31,7 +33,7 @@ export default function Mer() {
     {store.internal && <div className="group"><div className="group-h"><h3>Ressurser</h3><button className="btn sm" onClick={() => setRes({ type: 'Kjøretøy', active: true })}><Icon.plus /> Ny ressurs</button></div>
       <div className="list">{[...store.db.resources].sort((a, b) => a.name.localeCompare(b.name, 'nb')).map(r => { const busy = resBusy(store, r.id, T, T);
         return <button key={r.id} className="item" onClick={() => setRes(r)}><span style={{ color: 'var(--violet-ink)' }}><Icon.truck size={22} /></span>
-          <div className="main"><div className="t">{r.name}</div><div className="s">{r.type}{r.sub ? ' · ' + r.sub : ''}{r.price != null ? ' · ' + kr(r.price) + '/dag' : ''}</div></div>
+          <div className="main"><div className="t">{r.name}</div><div className="s">{r.type}{r.sub ? ' · ' + r.sub : ''}{r.price != null ? ' · ' + kr(r.price) + '/dag' : ''}{r.last_pos_at ? ' · posisjon ' + new Date(r.last_pos_at).toLocaleDateString('nb-NO') : ''}</div></div>
           {!r.active ? <Pill>Inaktiv</Pill> : busy.length ? <Pill c="warn">I bruk i dag</Pill> : <Pill c="ok">Ledig i dag</Pill>}<Icon.chev className="chev" /></button>; })}
         {!store.db.resources.length && <Empty>Ingen ressurser ennå. Legg til lastebil, tilhengere, scene, hjullaster og annet som skal bookes.</Empty>}</div></div>}
 
@@ -40,7 +42,7 @@ export default function Mer() {
     {res && <Sheet title={res.id ? res.name : 'Ny ressurs'} onClose={() => setRes(null)}>
       <form className="form" onSubmit={async e => {
         e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)) as any;
-        const row = { name: d.name.trim(), type: d.type, sub: d.sub || null, price: d.price === '' ? null : +d.price, active: !!d.active };
+        const row = { name: d.name.trim(), type: d.type, sub: d.sub || null, price: d.price === '' ? null : +d.price, active: !!d.active, tracker: d.tracker || null, tracker_url: d.tracker_url || null };
         const { error } = res.id ? await sb().from('resources').update(row).eq('id', res.id) : await sb().from('resources').insert(row);
         if (error) return toast(error.message, 'bad'); await store.refresh('resources'); setRes(null); toast('Ressursen er lagret');
       }}>
@@ -48,6 +50,9 @@ export default function Mer() {
         <div className="frow stack"><div className="field"><label htmlFor="r-t">Type</label><select className="input" id="r-t" name="type" defaultValue={res.type}>{RTYPES.map(t => <option key={t}>{t}</option>)}</select></div>
           <div className="field"><label htmlFor="r-s">Reg.nr. eller detaljer</label><input className="input" id="r-s" name="sub" defaultValue={res.sub || ''} /></div></div>
         <div className="field"><label htmlFor="r-p">Dagpris (kr eks. mva.)</label><input className="input" id="r-p" name="price" type="number" min="0" step="any" defaultValue={res.price ?? ''} placeholder="Tom = ikke fakturerbar" /></div>
+        <div className="frow stack"><div className="field"><label htmlFor="r-tr">AirTag / sporer</label><input className="input" id="r-tr" name="tracker" defaultValue={res.tracker || ''} placeholder="F.eks. AirTag Lastebil" /></div>
+          <div className="field"><label htmlFor="r-tu">Lenke til sporing (valgfritt)</label><input className="input" id="r-tu" name="tracker_url" type="url" defaultValue={res.tracker_url || ''} placeholder="https://…" /></div></div>
+        {res.id && <ResourcePosition r={store.R(res.id) || res} />}
         <label style={{ display: 'flex', gap: 10, alignItems: 'center', fontWeight: 600 }}><input type="checkbox" name="active" defaultChecked={res.active !== false} style={{ width: 20, height: 20, accentColor: 'var(--orange)' }} /> Aktiv (kan bookes)</label>
         <button className="btn primary block">Lagre</button>
         {res.id && <button type="button" className="btn ghost danger" onClick={async () => {
